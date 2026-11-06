@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#fff8f2">
+    <title>Panel de administración | Dulce Encanto</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <a class="logo" href="{{ url_for('index') }}" aria-label="Dulce Encanto, volver al inicio">
+            <span class="logo-icon" aria-hidden="true">D</span>
+            <span>Dulce <strong>Encanto</strong></span>
+        </a>
+        <div class="header-actions">
+            <span class="signed-in-label">Administrador: {{ usuario_email }}</span>
+            <form action="{{ url_for('cerrar_sesion') }}" method="post">
+                <button class="header-link logout-button" type="submit">Cerrar sesión</button>
+            </form>
+        </div>
+    </header>
+    <main class="admin-page">
+        <section class="admin-card" aria-labelledby="admin-title">
+            <p class="eyebrow">Dulce Encanto</p>
+            <h1 id="admin-title">Panel de administración</h1>
+            <p>Administra cuentas, productos, compras, ventas e inventario desde MongoDB.</p>
+
+            {% for category, message in get_flashed_messages(with_categories=true) %}
+            <p class="admin-message admin-message-{{ category }}" role="status">{{ message }}</p>
+            {% endfor %}
+
+            <div class="admin-tools-grid">
+                <section class="admin-tool" aria-labelledby="product-form-title">
+                    <h2 id="product-form-title">Agregar producto</h2>
+                    <form class="product-form" action="{{ url_for('agregar_producto') }}" method="post" enctype="multipart/form-data">
+                        <label for="product-photo">Foto del producto</label>
+                        <input id="product-photo" name="photo" type="file" accept=".jpg,.jpeg,.png,.gif,.webp" required>
+                        <small>Formatos JPG, PNG, GIF o WEBP. Máximo 5 MB.</small>
+
+                        <label for="product-category">Catálogo</label>
+                        <select id="product-category" name="category" required>
+                            <option value="">Elige una categoría</option>
+                            {% for value, label in categorias.items() %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label for="product-name">Nombre del producto</label>
+                        <input id="product-name" name="name" type="text" maxlength="100" required>
+
+                        <label for="product-price">Precio (MXN)</label>
+                        <input id="product-price" name="price" type="number" min="0.01" max="999999.99" step="0.01" placeholder="0.00" required>
+
+                        <label for="product-quantity">Stock inicial</label>
+                        <input id="product-quantity" name="quantity" type="number" min="0" max="100000" step="1" value="0" required>
+
+                        <button class="login-submit" type="submit">Agregar producto</button>
+                    </form>
+                </section>
+
+                <section class="admin-tool" aria-labelledby="purchase-form-title">
+                    <h2 id="purchase-form-title">Registrar compra a proveedor</h2>
+                    <form class="product-form" action="{{ url_for('crear_compra') }}" method="post">
+                        <label for="purchase-product">Producto</label>
+                        <select id="purchase-product" name="product_id" required>
+                            <option value="">Elige un producto</option>
+                            {% for producto in productos %}
+                            <option value="{{ producto.id }}">{{ producto.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="purchase-quantity">Cantidad recibida</label>
+                        <input id="purchase-quantity" name="quantity" type="number" min="1" max="100000" step="1" required>
+                        <label for="purchase-cost">Costo por unidad (MXN)</label>
+                        <input id="purchase-cost" name="unit_cost" type="number" min="0.01" max="999999.99" step="0.01" required>
+                        <label for="purchase-supplier">Proveedor</label>
+                        <input id="purchase-supplier" name="supplier" type="text" maxlength="120" required>
+                        <button class="login-submit" type="submit">Guardar compra y sumar inventario</button>
+                    </form>
+                </section>
+
+                <section class="admin-tool" aria-labelledby="sale-form-title">
+                    <h2 id="sale-form-title">Registrar venta</h2>
+                    <form class="product-form" action="{{ url_for('crear_venta') }}" method="post">
+                        <label for="sale-product">Producto con precio asignado</label>
+                        <select id="sale-product" name="product_id" required>
+                            <option value="">Elige un producto</option>
+                            {% for producto in productos %}
+                            {% if producto.price_cents %}
+                            <option value="{{ producto.id }}">{{ producto.name }} — ${{ "%.2f"|format(producto.price_cents / 100) }} MXN</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <label for="sale-quantity">Cantidad</label>
+                        <input id="sale-quantity" name="quantity" type="number" min="1" max="100000" step="1" required>
+                        <label for="sale-customer">Correo del cliente (opcional)</label>
+                        <input id="sale-customer" name="customer_email" type="email" maxlength="254">
+                        <button class="login-submit" type="submit">Registrar venta y descontar inventario</button>
+                    </form>
+                </section>
+
+                <section class="admin-tool" aria-labelledby="user-form-title">
+                    <h2 id="user-form-title">Crear usuario</h2>
+                    <form class="product-form" action="{{ url_for('crear_usuario') }}" method="post">
+                        <label for="user-email">Correo electrónico</label>
+                        <input id="user-email" name="email" type="email" maxlength="254" required>
+                        <label for="user-password">Contraseña (mínimo 12 caracteres)</label>
+                        <input id="user-password" name="password" type="password" minlength="12" autocomplete="new-password" required>
+                        <label for="user-role">Rol</label>
+                        <select id="user-role" name="role" required>
+                            <option value="customer">Cliente</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                        <button class="login-submit" type="submit">Crear cuenta</button>
+                    </form>
+                </section>
+            </div>
+
+            <section class="admin-products" aria-labelledby="admin-products-title">
+                <h2 id="admin-products-title">Inventario actual</h2>
+                <ul>
+                    {% for item in inventory %}
+                    <li>
+                        <span><strong>{{ item.product_name }}</strong></span>
+                        <span>{{ item.quantity }} en existencia</span>
+                    </li>
+                    {% else %}
+                    <li><span>No hay productos registrados.</span></li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <section class="admin-products" aria-labelledby="admin-sales-title">
+                <h2 id="admin-pending-title">Solicitudes de pedido pendientes</h2>
+                <ul>
+                    {% for pedido in pedidos %}
+                    <li class="pending-order">
+                        <div>
+                            <strong>{{ pedido.customer_name }}</strong> · {{ pedido.customer_email }}<br>
+                            {{ pedido["items"][0].product_name }} × {{ pedido["items"][0].quantity }}
+                            {% if pedido.total_cents %}
+                            · ${{ "%.2f"|format(pedido.total_cents / 100) }} MXN
+                            {% else %}
+                            · Precio pendiente de asignar
+                            {% endif %}
+                            {% if pedido.note %}<br><small>{{ pedido.note }}</small>{% endif %}
+                        </div>
+                        <div class="pending-order-actions">
+                            <form action="{{ url_for('confirmar_pedido', order_id=pedido.id) }}" method="post">
+                                <button class="login-submit" type="submit">Confirmar</button>
+                            </form>
+                            <form action="{{ url_for('cancelar_pedido', order_id=pedido.id) }}" method="post">
+                                <button class="header-link logout-button" type="submit">Cancelar</button>
+                            </form>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li><span>No hay solicitudes pendientes.</span></li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <section class="admin-products" aria-labelledby="admin-sales-title">
+                <h2 id="admin-sales-title">Ventas recientes</h2>
+                <ul>
+                    {% for venta in ventas %}
+                    <li>
+                        <span><strong>{{ venta["items"][0].product_name }}</strong> × {{ venta["items"][0].quantity }}{% if venta.customer_email %} · {{ venta.customer_email }}{% endif %}</span>
+                        <span>${{ "%.2f"|format(venta.total_cents / 100) }} MXN</span>
+                    </li>
+                    {% else %}
+                    <li><span>Aún no hay ventas.</span></li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <section class="admin-products" aria-labelledby="admin-purchases-title">
+                <h2 id="admin-purchases-title">Compras recientes</h2>
+                <ul>
+                    {% for compra in compras %}
+                    <li>
+                        <span><strong>{{ compra["items"][0].product_name }}</strong> × {{ compra["items"][0].quantity }} · {{ compra.supplier }}</span>
+                        <span>${{ "%.2f"|format(compra.total_cents / 100) }} MXN</span>
+                    </li>
+                    {% else %}
+                    <li><span>Aún no hay compras.</span></li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <section class="admin-products" aria-labelledby="admin-users-title">
+                <h2 id="admin-users-title">Usuarios</h2>
+                <ul>
+                    {% for user in users %}
+                    <li><span><strong>{{ user.email }}</strong></span><span>{{ "Administrador" if user.role == "admin" else "Cliente" }}</span></li>
+                    {% else %}
+                    <li><span>No hay cuentas creadas.</span></li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <a class="login-back-link" href="{{ url_for('index') }}">Volver a la tienda</a>
+        </section>
+    </main>
+</body>
+</html>

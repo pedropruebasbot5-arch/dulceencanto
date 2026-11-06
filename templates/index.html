@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#fff8f2">
+    <title>Dulce Encanto | Tienda de postres</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <a class="logo" href="#inicio" aria-label="Dulce Encanto, inicio" data-home-link>
+            <span class="logo-icon" aria-hidden="true">D</span>
+            <span>Dulce <strong>Encanto</strong></span>
+        </a>
+        <nav class="main-nav" aria-label="Navegación principal y catálogo">
+            <button class="catalog-filter home-filter" type="button" data-home aria-pressed="true">Inicio</button>
+
+            <div class="catalog-dropdown" data-catalog-dropdown>
+                <button
+                    class="catalog-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="catalog-menu"
+                    data-catalog-toggle
+                >
+                    Catálogo <span aria-hidden="true">▾</span>
+                </button>
+                <div class="catalog-menu" id="catalog-menu" hidden>
+                    <button class="catalog-filter" type="button" data-category="todos" aria-pressed="true">Todos</button>
+                    <button class="catalog-filter" type="button" data-category="pasteles" aria-pressed="false">Pasteles</button>
+                    <button class="catalog-filter" type="button" data-category="panes" aria-pressed="false">Panes</button>
+                    <button class="catalog-filter" type="button" data-category="postres" aria-pressed="false">Postres</button>
+                    <button class="catalog-filter" type="button" data-category="bebidas" aria-pressed="false">Bebidas</button>
+                </div>
+            </div>
+
+            <div class="history-dropdown" data-history-dropdown>
+                <button
+                    class="catalog-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="history-panel"
+                    data-history-toggle
+                >
+                    Historial <span aria-hidden="true">▾</span>
+                </button>
+                <div class="history-panel" id="history-panel" hidden>
+                    {% if reservas_activas %}
+                    <p class="history-panel-title">Pedido actual</p>
+                    {% for reserva in reservas_activas %}
+                    <div class="history-item">
+                        <div>
+                            <strong>{{ reserva['product_name'] }}</strong>
+                            <span>{{ reserva['items'][0]['quantity'] }} pieza(s)</span>
+                        </div>
+                        <div class="history-item-meta">{{ '%02d:%02d'|format((reserva['remaining_seconds'] // 60), (reserva['remaining_seconds'] % 60)) }}</div>
+                        <form action="{{ url_for('cancelar_reserva_route', order_id=reserva['id']) }}" method="post">
+                            <button class="history-cancel" type="submit">Cancelar</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="history-empty">Aún no tienes un pedido activo.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <a href="#nosotros">Nuestra esencia</a>
+        </nav>
+        <div class="header-actions">
+            {% if usuario_email %}
+            <span class="signed-in-label">Hola, {{ usuario_email }}</span>
+            {% if es_admin %}
+            <a class="header-link login-link" href="{{ url_for('administracion') }}">Panel de administración</a>
+            {% endif %}
+            <form action="{{ url_for('cerrar_sesion') }}" method="post">
+                <button class="header-link logout-button" type="submit">Cerrar sesión</button>
+            </form>
+            {% else %}
+            <a class="header-link login-link" href="{{ url_for('inicio') }}">Iniciar sesión</a>
+            {% endif %}
+
+            <div class="cart-wrapper">
+                <button class="header-link cart-button" type="button" data-cart-toggle aria-expanded="false" aria-controls="cart-panel">
+                    Carrito <span class="cart-count">{{ carrito['count'] }}</span>
+                </button>
+                <div class="cart-panel" id="cart-panel" hidden>
+                    {% if carrito['items'] %}
+                    <ul class="cart-items">
+                        {% for item in carrito['items'] %}
+                        <li>
+                            <span>{{ item['name'] }} x{{ item['quantity'] }}</span>
+                            <strong>${{ '%.2f'|format(item['line_total_cents'] / 100) }}</strong>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="cart-summary">
+                        <span>Total</span>
+                        <strong>${{ '%.2f'|format(carrito['total_cents'] / 100) }}</strong>
+                    </div>
+                    <form class="cart-form" action="{{ url_for('reservar_carrito') }}" method="post">
+                        <label for="cart-customer-name">Tu nombre</label>
+                        <input id="cart-customer-name" name="customer_name" type="text" maxlength="100" required>
+                        <label for="cart-customer-email">Tu correo</label>
+                        <input id="cart-customer-email" name="customer_email" type="email" maxlength="254" required>
+                        <label for="cart-note">Nota (opcional)</label>
+                        <textarea id="cart-note" name="note" maxlength="500" rows="2"></textarea>
+                        <button class="login-submit" type="submit">Reservar carrito</button>
+                    </form>
+                    <form action="{{ url_for('vaciar_carrito_route') }}" method="post">
+                        <button class="cart-clear-button" type="submit">Vaciar carrito</button>
+                    </form>
+                    {% else %}
+                    <p class="cart-empty">Tu carrito está vacío.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <a class="header-link" href="#postres" data-show-catalog>Ver menú <span aria-hidden="true">↓</span></a>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero" id="inicio">
+            <div class="hero-copy">
+                <p class="eyebrow"><span aria-hidden="true">✦</span> Un capricho hecho con amor</p>
+                <h1>Pequeños momentos,<br><span>grandes antojos.</span></h1>
+                <p class="hero-description">
+                    Postres para compartir, celebrar o simplemente darte ese gusto que te alegra el día.
+                </p>
+                <a class="primary-link" href="#postres">Descubre nuestros postres <span aria-hidden="true">↓</span></a>
+                <p class="hero-note"><span aria-hidden="true">♥</span> Hecho con cariño, servido con una sonrisa</p>
+            </div>
+            <div class="hero-decoration" aria-hidden="true">
+                <span class="hero-sparkle sparkle-one">✦</span>
+                <span class="hero-sparkle sparkle-two">✧</span>
+                <div class="hero-stamp"><span>un dulce</span><strong>momento</strong><span>para ti</span></div>
+                <span class="hero-heart">♡</span>
+            </div>
+        </section>
+
+        <section class="menu-section" id="postres">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Preparados para alegrarte</p>
+                    <h2>Un menú lleno de <span>dulzura</span></h2>
+                </div>
+                <p class="section-description">Encuentra tu nuevo favorito entre nuestras delicias.</p>
+            </div>
+
+            {% for category, message in flashes %}
+            <p class="admin-message admin-message-{{ category }}" role="status">{{ message }}</p>
+            {% endfor %}
+
+            <div class="products-grid" id="products-grid">
+                {% for producto in productos %}
+                <article class="producto-card{% if producto.quantity == 0 %} producto-agotado{% endif %}" data-category="{{ producto.category }}">
+                    <div class="product-image-wrap">
+                        <img
+                            class="producto-img"
+                            src="{% if producto.uploaded %}{{ url_for('product_image', filename=producto.image) }}{% else %}{{ url_for('servir_imagen', filename=producto.image) }}{% endif %}"
+                            alt="{{ producto.name }}"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                        <div class="product-status-wrap">
+                            <span class="product-tag{% if producto.quantity == 0 %} product-tag-agotado{% endif %}">{% if producto.quantity == 0 %}Agotado{% else %}{{ producto.tag }}{% endif %}</span>
+                            {% if producto.reserved %}
+                            <span class="product-status reserved" data-reservation-status data-expires="{{ producto.reservation_expires_at.isoformat() }}">
+                                Reservado • <span data-countdown>00:00</span>
+                            </span>
+                            {% else %}
+                            <span class="product-status available">Disponible</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="producto-info">
+                        <p class="product-category">{{ producto.category_label }}</p>
+                        <h3>{{ producto.name }}</h3>
+                        <p class="product-description">{{ producto.description }}</p>
+                        <div class="product-rating" data-rating-widget data-product-id="{{ producto.id|default(producto.image, true) }}">
+                            <span class="rating-label">Califica este producto</span>
+                            <div class="rating-stars" aria-label="Calificación de 1 a 5 estrellas">
+                                {% for rating in range(1, 6) %}
+                                <button
+                                    class="rating-star"
+                                    type="button"
+                                    data-rating="{{ rating }}"
+                                    aria-label="{{ rating }} {% if rating == 1 %}estrella{% else %}estrellas{% endif %}"
+                                    aria-pressed="false"
+                                >★</button>
+                                {% endfor %}
+                            </div>
+                            <p class="rating-status" data-rating-status aria-live="polite">Aún sin calificación</p>
+                        </div>
+                        <div class="product-bottom">
+                            {% if producto.price_cents is not none %}
+                            <p class="precio">${{ "%.2f"|format(producto.price_cents / 100) }} <span>MXN</span></p>
+                            {% else %}
+                            <p class="price-note">Consulta disponibilidad</p>
+                            {% endif %}
+                            <form action="{{ url_for('agregar_al_carrito') }}" method="post" class="add-to-cart-form">
+                                <input type="hidden" name="product_id" value="{{ producto.id }}">
+                                <input type="hidden" name="quantity" value="1">
+                                <button
+                                    class="btn-comprar"
+                                    type="submit"
+                                    {% if producto.quantity == 0 or producto.reserved %}disabled{% endif %}
+                                >{% if producto.quantity == 0 %}Agotado{% elif producto.reserved %}Reservado{% else %}Lo quiero <span aria-hidden="true">→</span>{% endif %}</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            <p class="catalog-empty" id="catalog-empty" hidden>No hay productos en esta categoría por el momento.</p>
+        </section>
+
+        <section class="reservations-section" id="mis-reservas">
+            <div class="section-heading reservations-heading">
+                <div>
+                    <p class="eyebrow">Tus pedidos</p>
+                    <h2>Historial de pedidos</h2>
+                </div>
+            </div>
+
+            {% if reservas_activas %}
+            <div class="reservations-grid">
+                {% for reserva in reservas_activas %}
+                <article class="reservation-card">
+                    <p class="reservation-title">{{ reserva['product_name'] }}</p>
+                    <p class="reservation-meta">Cantidad: {{ reserva['items'][0]['quantity'] }}</p>
+                    <p class="reservation-meta">Te queda: <strong data-countdown-reservation data-expiration="{{ reserva['expires_at'].isoformat() }}">{{ '%02d:%02d'|format((reserva['remaining_seconds'] // 60), (reserva['remaining_seconds'] % 60)) }}</strong></p>
+                    <div class="reservation-actions">
+                        <form action="{{ url_for('confirmar_reserva_route', order_id=reserva['id']) }}" method="post">
+                            <button class="reservation-buy" type="submit">Comprar ahora</button>
+                        </form>
+                        <form action="{{ url_for('cancelar_reserva_route', order_id=reserva['id']) }}" method="post">
+                            <button class="reservation-cancel" type="submit">Cancelar</button>
+                        </form>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="history-empty history-empty-block">Aún no tienes pedidos activos. Cuando reserves algo, aparecerá aquí.</p>
+            {% endif %}
+        </section>
+
+        <section class="about-section" id="nosotros">
+            <span class="about-heart" aria-hidden="true">♡</span>
+            <div>
+                <p class="eyebrow">Nuestra esencia</p>
+                <h2>Endulzamos los momentos de todos los días.</h2>
+            </div>
+            <p>En Dulce Encanto creemos que siempre hay un buen motivo para disfrutar algo rico.</p>
+        </section>
+    </main>
+
+    <dialog class="order-dialog" id="order-dialog" aria-labelledby="order-title">
+        <form class="product-form order-form" action="{{ url_for('crear_pedido') }}" method="post">
+            <button class="order-dialog-close" type="button" data-close-order aria-label="Cerrar">×</button>
+            <p class="eyebrow">Pedido</p>
+            <h2 id="order-title">Quiero pedir</h2>
+            <p class="order-product-name" id="order-product-name"></p>
+            <input type="hidden" name="product_id" id="order-product-id">
+            <label for="order-customer-name">Tu nombre</label>
+            <input id="order-customer-name" name="customer_name" type="text" maxlength="100" autocomplete="name" required>
+            <label for="order-customer-email">Tu correo electrónico</label>
+            <input id="order-customer-email" name="customer_email" type="email" maxlength="254" autocomplete="email" required>
+            <label for="order-quantity">Cantidad</label>
+            <input id="order-quantity" name="quantity" type="number" min="1" max="100" value="1" required>
+            <label for="order-note">Nota para la pastelería (opcional)</label>
+            <textarea id="order-note" name="note" maxlength="500" rows="3"></textarea>
+            <p class="order-help">La solicitud queda pendiente hasta que confirmemos disponibilidad y total.</p>
+            <button class="login-submit" type="submit">Enviar solicitud</button>
+        </form>
+    </dialog>
+
+    <footer class="site-footer">
+        <a class="logo footer-logo" href="#inicio">
+            <span class="logo-icon" aria-hidden="true">D</span>
+            <span>Dulce <strong>Encanto</strong></span>
+        </a>
+        <p>Hecho por:</p>
+        <span>© Dulce Encanto</span>
+    </footer>
+    <script>
+        const ratingsStorageKey = "dulce-encanto-product-ratings";
+        let savedRatings = {};
+
+        try {
+            const storedRatings = localStorage.getItem(ratingsStorageKey);
+            if (storedRatings) {
+                const parsedRatings = JSON.parse(storedRatings);
+                if (parsedRatings && typeof parsedRatings === "object" && !Array.isArray(parsedRatings)) {
+                    savedRatings = parsedRatings;
+                }
+            }
+        } catch (error) {
+            console.warn("No se pudieron cargar las calificaciones guardadas.", error);
+        }
+
+        document.querySelectorAll("[data-rating-widget]").forEach((widget) => {
+            const productId = widget.dataset.productId;
+            const stars = widget.querySelectorAll("[data-rating]");
+            const status = widget.querySelector("[data-rating-status]");
+            const storedRating = Number(savedRatings[productId]);
+            let selectedRating = Number.isInteger(storedRating) && storedRating >= 1 && storedRating <= 5
+                ? storedRating
+                : 0;
+
+            const renderRating = (rating) => {
+                stars.forEach((star) => {
+                    const isSelected = Number(star.dataset.rating) <= rating;
+                    star.classList.toggle("is-selected", isSelected);
+                    star.setAttribute("aria-pressed", String(Number(star.dataset.rating) === rating));
+                });
+                status.textContent = rating
+                    ? `Tu reseña: ${rating} de 5 estrellas`
+                    : "Aún sin calificación";
+            };
+
+            const previewRating = (rating) => {
+                stars.forEach((star) => {
+                    star.classList.toggle("is-selected", Number(star.dataset.rating) <= rating);
+                });
+            };
+
+            renderRating(selectedRating);
+
+            stars.forEach((star) => {
+                star.addEventListener("mouseenter", () => {
+                    previewRating(Number(star.dataset.rating));
+                });
+                star.addEventListener("focus", () => {
+                    previewRating(Number(star.dataset.rating));
+                });
+                star.addEventListener("click", () => {
+                    selectedRating = Number(star.dataset.rating);
+                    savedRatings[productId] = selectedRating;
+                    renderRating(selectedRating);
+
+                    try {
+                        localStorage.setItem(ratingsStorageKey, JSON.stringify(savedRatings));
+                    } catch (error) {
+                        status.textContent = "Calificación seleccionada, pero no se pudo guardar.";
+                        console.warn("No se pudo guardar la calificación del producto.", error);
+                    }
+                });
+            });
+
+            widget.addEventListener("mouseleave", () => renderRating(selectedRating));
+            widget.addEventListener("focusout", (event) => {
+                if (!widget.contains(event.relatedTarget)) {
+                    renderRating(selectedRating);
+                }
+            });
+        });
+
+        const categoryButtons = document.querySelectorAll(".catalog-filter");
+        const productCards = document.querySelectorAll(".producto-card");
+        const emptyMessage = document.getElementById("catalog-empty");
+        const homeSection = document.getElementById("inicio");
+        const homeButton = document.querySelector("[data-home]");
+        const homeLink = document.querySelector("[data-home-link]");
+        const catalogLink = document.querySelector("[data-show-catalog]");
+        const catalogDropdown = document.querySelector("[data-catalog-dropdown]");
+        const catalogToggle = document.querySelector("[data-catalog-toggle]");
+        const catalogMenu = document.getElementById("catalog-menu");
+        const historyDropdown = document.querySelector("[data-history-dropdown]");
+        const historyToggle = document.querySelector("[data-history-toggle]");
+        const historyPanel = document.getElementById("history-panel");
+
+        const closeCatalogMenu = () => {
+            catalogMenu.hidden = true;
+            catalogMenu.setAttribute("hidden", "hidden");
+            catalogToggle.setAttribute("aria-expanded", "false");
+            catalogDropdown.classList.remove("is-open");
+        };
+
+        const openCatalogMenu = () => {
+            catalogMenu.hidden = false;
+            catalogMenu.removeAttribute("hidden");
+            catalogToggle.setAttribute("aria-expanded", "true");
+            catalogDropdown.classList.add("is-open");
+        };
+
+        const closeHistoryMenu = () => {
+            if (!historyDropdown || !historyPanel || !historyToggle) return;
+            historyPanel.hidden = true;
+            historyPanel.setAttribute("hidden", "hidden");
+            historyToggle.setAttribute("aria-expanded", "false");
+            historyDropdown.classList.remove("is-open");
+        };
+
+        const openHistoryMenu = () => {
+            if (!historyDropdown || !historyPanel || !historyToggle) return;
+            historyPanel.hidden = false;
+            historyPanel.removeAttribute("hidden");
+            historyToggle.setAttribute("aria-expanded", "true");
+            historyDropdown.classList.add("is-open");
+        };
+
+        const initializeCatalog = () => {
+            closeCatalogMenu();
+            closeHistoryMenu();
+
+            catalogToggle.addEventListener("click", (event) => {
+                event.stopPropagation();
+                if (catalogMenu.hasAttribute("hidden")) {
+                    openCatalogMenu();
+                    closeHistoryMenu();
+                } else {
+                    closeCatalogMenu();
+                }
+            });
+
+            if (historyToggle) {
+                historyToggle.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    if (historyPanel.hasAttribute("hidden")) {
+                        openHistoryMenu();
+                        closeCatalogMenu();
+                    } else {
+                        closeHistoryMenu();
+                    }
+                });
+            }
+
+            document.addEventListener("click", (event) => {
+                if (catalogDropdown && !catalogDropdown.contains(event.target)) {
+                    closeCatalogMenu();
+                }
+                if (historyDropdown && !historyDropdown.contains(event.target)) {
+                    closeHistoryMenu();
+                }
+            });
+        };
+
+        const cartToggle = document.querySelector("[data-cart-toggle]");
+        const cartPanel = document.getElementById("cart-panel");
+
+        if (cartToggle && cartPanel) {
+            cartToggle.addEventListener("click", (event) => {
+                event.stopPropagation();
+                const hidden = cartPanel.hasAttribute("hidden");
+                cartPanel.hidden = !hidden;
+                cartToggle.setAttribute("aria-expanded", String(hidden));
+            });
+            document.addEventListener("click", (event) => {
+                if (!event.target.closest(".cart-wrapper")) {
+                    cartPanel.hidden = true;
+                    cartToggle.setAttribute("aria-expanded", "false");
+                }
+            });
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initializeCatalog);
+        } else {
+            initializeCatalog();
+        }
+
+        document.querySelectorAll("[data-countdown]").forEach((countdownNode) => {
+            const reservationStatus = countdownNode.closest("[data-reservation-status]");
+            if (!reservationStatus) {
+                return;
+            }
+
+            const expiresAt = new Date(reservationStatus.dataset.expires);
+            const updateCountdown = () => {
+                const remainingMs = expiresAt.getTime() - Date.now();
+                if (remainingMs <= 0) {
+                    countdownNode.textContent = "00:00";
+                    reservationStatus.textContent = "Reservado • 00:00";
+                    return;
+                }
+
+                const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+                const seconds = String(totalSeconds % 60).padStart(2, "0");
+                countdownNode.textContent = `${minutes}:${seconds}`;
+            };
+
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        });
+
+        document.querySelectorAll("[data-countdown-reservation]").forEach((countdownNode) => {
+            const expiresAt = new Date(countdownNode.dataset.expiration);
+            const updateCountdown = () => {
+                const remainingMs = expiresAt.getTime() - Date.now();
+                const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+                const seconds = String(totalSeconds % 60).padStart(2, "0");
+                countdownNode.textContent = `${minutes}:${seconds}`;
+            };
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        });
+
+        const showHome = () => {
+            homeSection.hidden = false;
+            productCards.forEach((card) => {
+                card.hidden = false;
+            });
+            emptyMessage.hidden = true;
+            categoryButtons.forEach((categoryButton) => {
+                categoryButton.setAttribute(
+                    "aria-pressed",
+                    String(categoryButton === document.querySelector("[data-category='todos']"))
+                );
+            });
+            closeCatalogMenu();
+            homeSection.scrollIntoView({ behavior: "smooth" });
+        };
+
+        homeButton.addEventListener("click", showHome);
+        homeLink.addEventListener("click", showHome);
+
+        categoryButtons.forEach((button) => {
+            if (button === homeButton) {
+                return;
+            }
+
+            button.addEventListener("click", () => {
+                const selectedCategory = button.dataset.category;
+                let visibleProducts = 0;
+
+                homeSection.hidden = true;
+                categoryButtons.forEach((categoryButton) => {
+                    categoryButton.setAttribute(
+                        "aria-pressed",
+                        String(categoryButton === button)
+                    );
+                });
+
+                productCards.forEach((card) => {
+                    const isVisible = selectedCategory === "todos" ? true : card.dataset.category === selectedCategory;
+                    card.hidden = !isVisible;
+                    visibleProducts += Number(isVisible);
+                });
+
+                emptyMessage.hidden = visibleProducts > 0;
+                closeCatalogMenu();
+                document.getElementById("postres").scrollIntoView({ behavior: "smooth" });
+            });
+        });
+
+        catalogLink.addEventListener("click", () => {
+            homeSection.hidden = true;
+            productCards.forEach((card) => {
+                card.hidden = false;
+            });
+            emptyMessage.hidden = true;
+            categoryButtons.forEach((categoryButton) => {
+                categoryButton.setAttribute("aria-pressed", String(categoryButton.dataset.category === "todos"));
+            });
+            closeCatalogMenu();
+        });
+
+        const orderDialog = document.getElementById("order-dialog");
+        const orderProductId = document.getElementById("order-product-id");
+        const orderProductName = document.getElementById("order-product-name");
+        const orderQuantity = document.getElementById("order-quantity");
+
+        document.querySelectorAll("[data-order-product-id]").forEach((button) => {
+            button.addEventListener("click", () => {
+                orderProductId.value = button.dataset.orderProductId;
+                orderProductName.textContent = button.dataset.orderProductName;
+                orderQuantity.value = "1";
+                orderDialog.showModal();
+            });
+        });
+
+        document.querySelector("[data-close-order]").addEventListener("click", () => {
+            orderDialog.close();
+        });
+
+        orderDialog.addEventListener("click", (event) => {
+            if (event.target === orderDialog) {
+                orderDialog.close();
+            }
+        });
+    </script>
+</body>
+</html>
